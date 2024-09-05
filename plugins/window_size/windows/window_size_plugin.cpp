@@ -150,6 +150,8 @@ class WindowSizePlugin : public flutter::Plugin {
 
   // The maximum size set by the platform channel.
   POINT max_size_ = {-1, -1};
+
+  double pixel_ratio_ = 1;
 };
 
 // static
@@ -210,18 +212,20 @@ void WindowSizePlugin::HandleMethodCall(
     result->Success();
   } else if (method_call.method_name().compare(kSetWindowMinimumSize) == 0) {
     const auto *size = std::get_if<EncodableList>(method_call.arguments());
-    if (!size || size->size() != 2) {
+    if (!size || size->size() != 3) {
       result->Error("Bad arguments", "Expected 2-element list");
       return;
     }
+    pixel_ratio_ = std::get<double>((*size)[2]);
     min_size_ = GetPointForPlatformChannelRepresentationSize(*size);
     result->Success();
   } else if (method_call.method_name().compare(kSetWindowMaximumSize) == 0) {
     const auto *size = std::get_if<EncodableList>(method_call.arguments());
-    if (!size || size->size() != 2) {
+    if (!size || size->size() != 3) {
       result->Error("Bad arguments", "Expected 2-element list");
       return;
     }
+    pixel_ratio_ = std::get<double>((*size)[2]);
     max_size_ = GetPointForPlatformChannelRepresentationSize(*size);
     result->Success();
   } else if (method_call.method_name().compare(kSetWindowTitleMethod) == 0) {
@@ -256,13 +260,16 @@ std::optional<LRESULT> WindowSizePlugin::HandleWindowProc(HWND hwnd,
                                                           LPARAM lparam) {
   std::optional<LRESULT> result;
   switch (message) {
+    case WM_DPICHANGED:
+      pixel_ratio_ = (float)LOWORD(wparam) / USER_DEFAULT_SCREEN_DPI;
+      break;
     case WM_GETMINMAXINFO:
       MINMAXINFO *info = reinterpret_cast<MINMAXINFO *>(lparam);
       // For the special "unconstrained" values, leave the defaults.
-      if (min_size_.x != 0) info->ptMinTrackSize.x = min_size_.x;
-      if (min_size_.y != 0) info->ptMinTrackSize.y = min_size_.y;
-      if (max_size_.x != -1) info->ptMaxTrackSize.x = max_size_.x;
-      if (max_size_.y != -1) info->ptMaxTrackSize.y = max_size_.y;
+      if (min_size_.x != 0) info->ptMinTrackSize.x = static_cast<LONG>(min_size_.x * pixel_ratio_);
+      if (min_size_.y != 0) info->ptMinTrackSize.y = static_cast<LONG>(min_size_.y * pixel_ratio_);
+      if (max_size_.x != -1) info->ptMaxTrackSize.x = static_cast<LONG>(max_size_.x * pixel_ratio_);
+      if (max_size_.y != -1) info->ptMaxTrackSize.y = static_cast<LONG>(max_size_.y * pixel_ratio_);
       result = 0;
       break;
   }

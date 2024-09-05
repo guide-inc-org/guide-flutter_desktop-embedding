@@ -162,10 +162,15 @@ class WindowSizeChannel {
         [frame.left, frame.top, frame.width, frame.height]);
   }
 
+  double _getDevicePixelRatio() {
+    // ignore: deprecated_member_use
+    return window.devicePixelRatio;
+  }
+
   /// Sets the minimum size of the window containing this Flutter instance.
   void setWindowMinSize(Size size) async {
     await _platformChannel
-        .invokeMethod(_setWindowMinimumSizeMethod, [size.width, size.height]);
+        .invokeMethod(_setWindowMinimumSizeMethod, [size.width, size.height, _getDevicePixelRatio()]);
   }
 
   /// Sets the visibility of the window.
@@ -183,6 +188,7 @@ class WindowSizeChannel {
     await _platformChannel.invokeMethod(_setWindowMaximumSizeMethod, [
       _channelRepresentationForMaxDimension(size.width),
       _channelRepresentationForMaxDimension(size.height),
+      _getDevicePixelRatio(),
     ]);
   }
 
